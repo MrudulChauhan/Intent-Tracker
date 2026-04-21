@@ -20,13 +20,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-interface Mention {
-  id: number;
-  title: string;
-  source: string;
-  url: string;
-  published_at: string;
-}
+type Mention = import("@/lib/api").Mention;
 
 interface MentionStats {
   total: number;
@@ -83,7 +77,7 @@ export default function SocialPage() {
   const timelineData = mentions
     .filter((m) => m.published_at)
     .reduce((acc: Record<string, number>, m) => {
-      const day = m.published_at.split("T")[0];
+      const day = m.published_at!.split("T")[0];
       acc[day] = (acc[day] || 0) + 1;
       return acc;
     }, {});
@@ -243,7 +237,7 @@ export default function SocialPage() {
                   </TableCell>
                   <TableCell className="px-4 py-3">
                     <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">
-                      {m.source.replace('_', ' ')}
+                      {(m.source ?? '').replace('_', ' ')}
                     </span>
                   </TableCell>
                   <TableCell className="text-xs text-gray-400 px-4 py-3 tabular-nums">

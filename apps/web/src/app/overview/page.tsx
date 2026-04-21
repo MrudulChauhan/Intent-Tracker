@@ -17,40 +17,13 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-interface Project {
-  id: number;
-  name: string;
-  category: string;
-  description: string;
-  chains: string;
-  token: string;
-  token_symbol?: string;
-  funding_total: number | null;
-  website: string;
-  twitter_handle: string;
-  github_org?: string;
-  status?: string;
+type Project = import("@/lib/api").Project & {
+  token?: string;
+  funding_total?: number | null;
   tvl?: number;
-  relevance_score?: number;
-  coingecko_id?: string;
-  defillama_slug?: string;
-}
-
-interface Mention {
-  id: number;
-  title: string;
-  source: string;
-  url: string;
-  published_at: string;
-}
-
-interface Stats {
-  projects: number;
-  mentions: number;
-  active: number;
-  total_raised: number;
-  unreviewed: number;
-}
+};
+type Mention = import("@/lib/api").Mention;
+type Stats = import("@/lib/api").Stats;
 
 const CATEGORY_FILTERS = ["All", "Solver", "Bridge", "DEX", "Infrastructure", "Aggregator", "Orderflow"];
 
@@ -297,11 +270,14 @@ export default function HomePage() {
                   title="Most Mentioned"
                   value={stats ? String(stats.mentions) : "0"}
                   subtitle="Latest"
-                  items={mentions.slice(0, 5).map((m, i) => ({
-                    rank: i + 1,
-                    name: m.title.length > 30 ? m.title.slice(0, 30) + "..." : m.title,
-                    value: m.source.replace("_", " "),
-                  }))}
+                  items={mentions.slice(0, 5).map((m, i) => {
+                    const t = m.title ?? "";
+                    return {
+                      rank: i + 1,
+                      name: t.length > 30 ? t.slice(0, 30) + "..." : t,
+                      value: (m.source ?? "").replace("_", " "),
+                    };
+                  })}
                 />
                 <LeaderboardCard
                   title="Most Active"
@@ -396,7 +372,7 @@ export default function HomePage() {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">
-                      {m.source.replace('_', ' ')}
+                      {(m.source ?? '').replace('_', ' ')}
                     </span>
                     <span className="text-[11px] text-gray-400 tabular-nums">
                       {m.published_at ? new Date(m.published_at).toLocaleDateString() : ""}

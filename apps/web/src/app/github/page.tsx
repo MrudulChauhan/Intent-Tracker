@@ -23,14 +23,16 @@ import {
 
 interface GithubRepo {
   id: number;
-  repo_url: string;
+  repo_url?: string;
   repo_name?: string;
-  stars: number;
-  forks: number;
-  open_issues: number;
-  contributors: number;
-  commits_30d: number;
+  stars?: number;
+  forks?: number;
+  open_issues?: number;
+  contributors?: number;
+  contributors_count?: number;
+  commits_30d?: number;
   last_commit?: string;
+  last_commit_at?: string;
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -61,17 +63,20 @@ export default function GithubPage() {
     load();
   }, []);
 
-  const totalStars = repos.reduce((s, r) => s + (r.stars || 0), 0);
+  const totalStars = repos.reduce((s, r) => s + (r.stars ?? 0), 0);
   const mostStarred = repos.length > 0
-    ? repos.reduce((best, r) => (r.stars > best.stars ? r : best), repos[0])
+    ? repos.reduce(
+        (best, r) => ((r.stars ?? 0) > (best.stars ?? 0) ? r : best),
+        repos[0]
+      )
     : null;
   const chartData = repos
-    .filter((r) => r.stars > 0)
-    .sort((a, b) => b.stars - a.stars)
+    .filter((r) => (r.stars ?? 0) > 0)
+    .sort((a, b) => (b.stars ?? 0) - (a.stars ?? 0))
     .slice(0, 10)
     .map((r) => ({
-      name: r.repo_name || r.repo_url.split("/").pop() || "repo",
-      stars: r.stars,
+      name: r.repo_name || r.repo_url?.split("/").pop() || "repo",
+      stars: r.stars ?? 0,
     }));
 
   if (loading) {
@@ -96,7 +101,7 @@ export default function GithubPage() {
         items={[
           { label: "Repos Tracked", value: String(repos.length) },
           { label: "Total Stars", value: String(totalStars) },
-          { label: "Most Starred", value: mostStarred ? (mostStarred.repo_name || mostStarred.repo_url.split("/").pop() || "") : "-" },
+          { label: "Most Starred", value: mostStarred ? (mostStarred.repo_name || mostStarred.repo_url?.split("/").pop() || "") : "-" },
         ]}
       />
 
@@ -160,7 +165,7 @@ export default function GithubPage() {
             </TableHeader>
             <TableBody>
               {repos.map((r) => {
-                const name = r.repo_name || r.repo_url.split("/").pop() || "repo";
+                const name = r.repo_name || r.repo_url?.split("/").pop() || "repo";
                 return (
                   <TableRow
                     key={r.id}

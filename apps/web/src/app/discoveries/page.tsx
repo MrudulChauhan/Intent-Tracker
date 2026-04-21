@@ -15,11 +15,11 @@ import {
 
 interface Discovery {
   id: number;
-  name: string;
-  type: string;
+  name?: string;
+  type?: string;
   entity_type?: string;
-  discovered_at: string;
-  reviewed: number;
+  discovered_at?: string;
+  reviewed?: number;
 }
 
 function TypeBadge({ type }: { type: string }) {

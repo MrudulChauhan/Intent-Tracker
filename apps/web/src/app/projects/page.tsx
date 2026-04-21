@@ -15,23 +15,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-interface Project {
-  id: number;
-  name: string;
-  category: string;
-  token: string;
-  token_symbol?: string;
-  funding_total: number | null;
-  status: string;
-  relevance_score: number | null;
-  description: string;
-  chains: string;
-  website: string;
-  twitter_handle?: string;
-  github_org?: string;
-  coingecko_id?: string;
-  defillama_slug?: string;
-}
+type Project = import("@/lib/api").Project & {
+  token?: string;
+  funding_total?: number | null;
+};
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -212,7 +199,7 @@ export default function ProjectsPage() {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status }: { status?: string }) {
   const isActive = status === "active";
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border ${

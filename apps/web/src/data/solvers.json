@@ -1,0 +1,290 @@
+[
+  {
+    "name": "Wintermute",
+    "type": "solver",
+    "description": "Major market maker and solver on UniswapX and CoW Protocol",
+    "protocols": [
+      "UniswapX",
+      "CoW Protocol",
+      "1inch Fusion",
+      "Across"
+    ],
+    "chains": [
+      "Ethereum",
+      "Arbitrum",
+      "Optimism",
+      "Base",
+      "Polygon"
+    ],
+    "website": "https://wintermute.com",
+    "twitter": "@wintermute_t",
+    "volume_tier": "high",
+    "status": "active"
+  },
+  {
+    "name": "Tokka Labs",
+    "type": "solver",
+    "description": "Dedicated solver for CoW Protocol and intent-based DEXs",
+    "protocols": [
+      "CoW Protocol"
+    ],
+    "chains": [
+      "Ethereum",
+      "Gnosis Chain"
+    ],
+    "website": "https://tokka.io",
+    "twitter": "@tokkalabs",
+    "volume_tier": "medium",
+    "status": "active"
+  },
+  {
+    "name": "Bebop",
+    "type": "quoter",
+    "description": "RFQ-based DEX providing quotes for intent settlement",
+    "protocols": [
+      "Bebop"
+    ],
+    "chains": [
+      "Ethereum",
+      "Arbitrum",
+      "Polygon",
+      "BNB Chain",
+      "Blast"
+    ],
+    "website": "https://bebop.xyz",
+    "twitter": "@bebop_dex",
+    "volume_tier": "medium",
+    "status": "active"
+  },
+  {
+    "name": "Hashflow",
+    "type": "quoter",
+    "description": "RFQ DEX with professional market makers providing guaranteed quotes",
+    "protocols": [
+      "Hashflow"
+    ],
+    "chains": [
+      "Ethereum",
+      "Arbitrum",
+      "Avalanche",
+      "BNB Chain",
+      "Optimism",
+      "Polygon"
+    ],
+    "website": "https://hashflow.com",
+    "twitter": "@hashflow",
+    "volume_tier": "high",
+    "status": "active"
+  },
+  {
+    "name": "AirSwap",
+    "type": "quoter",
+    "description": "Peer-to-peer RFQ protocol for decentralized OTC trading",
+    "protocols": [
+      "AirSwap"
+    ],
+    "chains": [
+      "Ethereum",
+      "Polygon",
+      "Avalanche",
+      "BNB Chain"
+    ],
+    "website": "https://airswap.io",
+    "twitter": "@airswap",
+    "volume_tier": "low",
+    "status": "active"
+  },
+  {
+    "name": "PropellerHeads",
+    "type": "solver",
+    "description": "MEV-aware solver optimizing execution for intent protocols",
+    "protocols": [
+      "CoW Protocol",
+      "UniswapX"
+    ],
+    "chains": [
+      "Ethereum"
+    ],
+    "website": "https://propellerheads.xyz",
+    "twitter": "@PropellerSwap",
+    "volume_tier": "medium",
+    "status": "active"
+  },
+  {
+    "name": "Enso Finance",
+    "type": "solver",
+    "description": "Intent routing engine that bundles and optimizes DeFi actions",
+    "protocols": [
+      "Enso"
+    ],
+    "chains": [
+      "Ethereum",
+      "Arbitrum",
+      "Optimism",
+      "Base",
+      "Polygon"
+    ],
+    "website": "https://enso.finance",
+    "twitter": "@EnsoFinance",
+    "volume_tier": "medium",
+    "status": "active"
+  },
+  {
+    "name": "1inch Fusion Resolvers",
+    "type": "filler",
+    "description": "Network of fillers competing to fill 1inch Fusion orders",
+    "protocols": [
+      "1inch Fusion"
+    ],
+    "chains": [
+      "Ethereum",
+      "Arbitrum",
+      "Polygon",
+      "BNB Chain",
+      "Avalanche"
+    ],
+    "website": "https://1inch.io",
+    "twitter": "@1inch",
+    "volume_tier": "high",
+    "status": "active"
+  },
+  {
+    "name": "Across Relayers",
+    "type": "filler",
+    "description": "Relayer network filling cross-chain intents on Across Protocol",
+    "protocols": [
+      "Across Protocol"
+    ],
+    "chains": [
+      "Ethereum",
+      "Arbitrum",
+      "Optimism",
+      "Base",
+      "Polygon",
+      "zkSync"
+    ],
+    "website": "https://across.to",
+    "twitter": "@AcrossProtocol",
+    "volume_tier": "high",
+    "status": "active"
+  },
+  {
+    "name": "Khalani Network",
+    "type": "solver",
+    "description": "Generalized solver infrastructure for cross-chain intents",
+    "protocols": [
+      "Khalani"
+    ],
+    "chains": [
+      "Multi-chain"
+    ],
+    "website": "https://khalani.network",
+    "twitter": "@KhalaniNetwork",
+    "volume_tier": "low",
+    "status": "building"
+  },
+  {
+    "name": "Flood Protocol",
+    "type": "filler",
+    "description": "Intent settlement layer where fillers compete in onchain Dutch auctions",
+    "protocols": [
+      "Flood"
+    ],
+    "chains": [
+      "Ethereum"
+    ],
+    "website": "https://flood.bid",
+    "twitter": "@floodprotocol",
+    "volume_tier": "low",
+    "status": "active"
+  },
+  {
+    "name": "Atlas (FastLane)",
+    "type": "solver",
+    "description": "Execution abstraction protocol enabling solver competition for user operations",
+    "protocols": [
+      "Atlas"
+    ],
+    "chains": [
+      "Ethereum",
+      "Polygon"
+    ],
+    "website": "https://fastlane.finance",
+    "twitter": "@FastLaneLabs",
+    "volume_tier": "low",
+    "status": "building"
+  },
+  {
+    "name": "DFlow",
+    "type": "quoter",
+    "description": "Decentralized order flow auction for best execution on Solana",
+    "protocols": [
+      "DFlow"
+    ],
+    "chains": [
+      "Solana"
+    ],
+    "website": "https://dflow.net",
+    "twitter": "@DFlowProtocol",
+    "volume_tier": "medium",
+    "status": "active"
+  },
+  {
+    "name": "Barter by Bloq",
+    "type": "solver",
+    "description": "Cross-chain solver providing optimal swap execution",
+    "protocols": [
+      "BarterSwap"
+    ],
+    "chains": [
+      "Ethereum",
+      "Arbitrum"
+    ],
+    "website": "https://barter.bloq.com",
+    "twitter": "@BloqInc",
+    "volume_tier": "low",
+    "status": "active"
+  },
+  {
+    "name": "0x / Matcha",
+    "type": "quoter",
+    "description": "DEX aggregation API with RFQ system connecting professional market makers",
+    "protocols": [
+      "0x Protocol"
+    ],
+    "chains": [
+      "Ethereum",
+      "Arbitrum",
+      "Optimism",
+      "Polygon",
+      "Base",
+      "BNB Chain",
+      "Avalanche"
+    ],
+    "website": "https://0x.org",
+    "twitter": "@0xProject",
+    "volume_tier": "high",
+    "status": "active"
+  },
+  {
+    "name": "Paraswap Augustus",
+    "type": "solver",
+    "description": "DEX aggregator with solver mode for optimal intent execution",
+    "protocols": [
+      "Paraswap"
+    ],
+    "chains": [
+      "Ethereum",
+      "Arbitrum",
+      "Optimism",
+      "Polygon",
+      "BNB Chain",
+      "Avalanche",
+      "Base"
+    ],
+    "website": "https://paraswap.io",
+    "twitter": "@paraswap",
+    "volume_tier": "high",
+    "status": "active"
+  }
+]

@@ -7,16 +7,17 @@ import { api } from "@/lib/api";
 import { ProjectLogo } from "@/components/project-logo";
 
 interface Solver {
-  id: number;
+  id?: number;
   name: string;
   type: string;
   description?: string;
-  protocols?: string;
-  chains?: string;
+  protocols?: string[] | string;
+  chains?: string[] | string;
   volume_tier?: string;
   status?: string;
   website?: string;
   twitter_handle?: string;
+  [key: string]: unknown;
 }
 
 const TYPE_FILTERS = ["All", "Solver", "Filler", "Quoter"];

@@ -7,7 +7,7 @@ interface ProjectCardProps {
   name: string;
   category?: string;
   description?: string;
-  chains?: string;
+  chains?: string[] | string | null;
   token?: string;
   token_symbol?: string;
   funding_total?: number | null;
@@ -16,14 +16,17 @@ interface ProjectCardProps {
   github_org?: string;
   status?: string;
   onClick?: () => void;
+  [key: string]: unknown;
 }
 
 export function ProjectCard(props: ProjectCardProps) {
   const { name, category, description, chains, token, token_symbol, funding_total, website, twitter_handle, github_org, status, onClick } = props;
 
   let chainList: string[] = [];
-  if (chains) {
-    try { chainList = JSON.parse(chains); } catch { chainList = chains ? [chains] : []; }
+  if (Array.isArray(chains)) {
+    chainList = chains;
+  } else if (typeof chains === "string" && chains) {
+    try { chainList = JSON.parse(chains); } catch { chainList = [chains]; }
   }
 
   const displayToken = token_symbol || token;

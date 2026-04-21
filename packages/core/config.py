@@ -62,6 +62,13 @@ class Settings(BaseSettings):
     # ---- Database --------------------------------------------------------
     db_path: Path = Field(default=DEFAULT_DB_PATH, validation_alias="DB_PATH")
 
+    # ---- Supabase (when set, scanner writes go to Postgres instead of SQLite)
+    supabase_url: str = Field(default="", validation_alias="SUPABASE_URL")
+    supabase_service_key: str = Field(
+        default="", validation_alias="SUPABASE_SERVICE_KEY"
+    )
+    supabase_anon_key: str = Field(default="", validation_alias="SUPABASE_ANON_KEY")
+
     # ---- Rate-limit delays (seconds) -------------------------------------
     coingecko_delay: float = 2.0
     github_delay: float = 1.0
