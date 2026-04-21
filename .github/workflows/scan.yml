@@ -1,0 +1,49 @@
+name: Weekly scan
+
+on:
+  schedule:
+    # Every Monday 06:00 UTC — aligned with SCAN_DAY=mon / SCAN_HOUR=6 defaults
+    - cron: "0 6 * * 1"
+  workflow_dispatch: {}  # manual trigger from the Actions tab
+
+concurrency:
+  group: intent-tracker-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # Runtime
+      ENVIRONMENT: production
+      # Scanner credentials
+      GITHUB_TOKEN: ${{ secrets.SCAN_GITHUB_TOKEN }}
+      DUNE_API_KEY: ${{ secrets.DUNE_API_KEY }}
+      REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+      REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+      REDDIT_USER_AGENT: IntentTracker/1.0
+      # Supabase target — writes go here instead of SQLite
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      # Dummy SCAN_TOKEN so the production-env pydantic validator passes
+      SCAN_TOKEN: ${{ secrets.SCAN_TOKEN }}
+      # PYTHONPATH mirrors scripts/_env.sh
+      PYTHONPATH: ${{ github.workspace }}/packages:${{ github.workspace }}/apps/scanner:${{ github.workspace }}/apps:${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "0.11.7"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run scanner
+        run: uv run python -m scheduler.scheduler --once
+        working-directory: ${{ github.workspace }}/apps/scanner
