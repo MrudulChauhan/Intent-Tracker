@@ -212,6 +212,10 @@ class SupabaseWriter:
         existing = self._get_one("social_mentions", url=url)
         return existing is not None
 
+    def close(self) -> None:
+        """Close the underlying httpx client. Matches the Writer protocol."""
+        self.client.close()
+
 
 def get_writer() -> Optional[SupabaseWriter]:
     """Return a SupabaseWriter if Supabase env vars are set, else None.
