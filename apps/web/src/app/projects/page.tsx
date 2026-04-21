@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 import { motion } from "framer-motion";
 import { api } from "@/lib/api";
@@ -21,12 +22,27 @@ type Project = import("@/lib/api").Project & {
 };
 
 export default function ProjectsPage() {
+  return (
+    <Suspense fallback={<div className="text-sm text-gray-400">Loading…</div>}>
+      <ProjectsPageInner />
+    </Suspense>
+  );
+}
+
+function ProjectsPageInner() {
+  const searchParams = useSearchParams();
+  const initialSearch = searchParams.get("search") ?? "";
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+
+  // Re-sync if the URL search param changes while the page is already mounted
+  useEffect(() => {
+    setSearch(searchParams.get("search") ?? "");
+  }, [searchParams]);
 
   useEffect(() => {
     async function load() {

@@ -1,7 +1,16 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LayoutDashboard, Layers, Zap, MessageSquare, GitBranch, Sparkles, Search } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import {
+  LayoutDashboard,
+  Layers,
+  Zap,
+  MessageSquare,
+  GitBranch,
+  Sparkles,
+  Search,
+} from "lucide-react";
 
 const links = [
   { href: "/overview", label: "Overview", icon: LayoutDashboard },
@@ -14,6 +23,29 @@ const links = [
 
 export function Nav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState("");
+
+  // ⌘K / Ctrl+K focuses the search input from anywhere
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const q = query.trim();
+    if (!q) return;
+    router.push(`/projects?search=${encodeURIComponent(q)}`);
+  }
 
   // Hide nav on landing page
   if (pathname === "/") return null;
@@ -51,13 +83,23 @@ export function Nav() {
           </div>
 
           {/* Search */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-gray-200 transition-colors">
-              <Search className="w-3.5 h-3.5 text-gray-400" />
-              <span className="text-sm text-gray-400">Search</span>
-              <kbd className="text-[10px] font-mono bg-white border border-gray-200 rounded px-1.5 py-0.5 text-gray-400">&#8984;K</kbd>
-            </div>
-          </div>
+          <form
+            onSubmit={submit}
+            className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-1.5 focus-within:bg-white focus-within:ring-1 focus-within:ring-gray-300 transition-colors"
+          >
+            <Search className="w-3.5 h-3.5 text-gray-400" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search projects"
+              className="bg-transparent outline-none text-sm text-gray-700 placeholder:text-gray-400 w-32 focus:w-48 transition-all"
+            />
+            <kbd className="text-[10px] font-mono bg-white border border-gray-200 rounded px-1.5 py-0.5 text-gray-400 select-none">
+              &#8984;K
+            </kbd>
+          </form>
         </div>
       </div>
     </nav>
