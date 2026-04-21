@@ -1,0 +1,68 @@
+/* =============================================================================
+ * Intent Tracker — shared CSS tokens (light theme)
+ * Source of truth for CSS variables consumed by apps/web (globals.css).
+ * Keep values in sync with tokens.ts and tokens.py.
+ * ============================================================================= */
+
+:root {
+  /* Brand */
+  --brand-orange: #FF6B2C;
+  --brand-orange-hover: #E55A1B;
+  --brand-near-black: #111827;
+
+  /* Surface */
+  --background: #FFFFFF;
+  --foreground: #111827;
+  --card: #FFFFFF;
+  --card-foreground: #111827;
+  --popover: #FFFFFF;
+  --popover-foreground: #111827;
+
+  /* Primary / secondary */
+  --primary: #111827;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F3F4F6;
+  --secondary-foreground: #111827;
+  --muted: #F3F4F6;
+  --muted-foreground: #6B7280;
+  --accent: #F3F4F6;
+  --accent-foreground: #111827;
+
+  /* Borders / inputs */
+  --border: #E5E7EB;
+  --input: #E5E7EB;
+  --ring: #10B981;
+
+  /* Semantic */
+  --destructive: #EF4444;
+  --positive: #10B981;
+  --warning: #F59E0B;
+
+  /* Category (used in charts / badges) */
+  --cat-solver: #6366F1;
+  --cat-filler: #10B981;
+  --cat-quoter: #F59E0B;
+  --cat-bridge: #06B6D4;
+  --cat-dex: #8B5CF6;
+  --cat-infrastructure: #EC4899;
+
+  /* Charts (shadcn convention) */
+  --chart-1: #10B981;
+  --chart-2: #0D9488;
+  --chart-3: #6366F1;
+  --chart-4: #F59E0B;
+  --chart-5: #EF4444;
+
+  /* Radius */
+  --radius: 0.625rem;
+
+  /* Sidebar */
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #111827;
+  --sidebar-primary: #111827;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F3F4F6;
+  --sidebar-accent-foreground: #111827;
+  --sidebar-border: #E5E7EB;
+  --sidebar-ring: #10B981;
+}

@@ -1,0 +1,21 @@
+{
+  "name": "intent-tracker",
+  "version": "0.2.0",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "packages/brand"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev -w apps/web",
+    "build:web": "npm run build -w apps/web",
+    "lint:web": "npm run lint -w apps/web",
+    "dev:api": "bash scripts/run_api.sh",
+    "scan": "bash scripts/run_scan.sh",
+    "sync-logos": "bash scripts/sync_logos.sh",
+    "audit": "npm audit --workspaces && uv pip check"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

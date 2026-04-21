@@ -1,0 +1,22 @@
+{
+  "name": "@intent-tracker/brand",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Single source of truth for Intent Tracker branding: tokens, logos, icons, guidelines",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./tokens": "./tokens.ts",
+    "./theme.css": "./theme.css",
+    "./logos/*": "./logos/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.ts",
+    "tokens.ts",
+    "theme.css",
+    "logos",
+    "icons"
+  ]
+}
