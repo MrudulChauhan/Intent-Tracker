@@ -262,6 +262,47 @@ async function scanLog(): Promise<ScanLogEntry[]> {
   return (data ?? []) as ScanLogEntry[];
 }
 
+// ---- Last scan summary -----------------------------------------------------
+// Returns the most recent scan_log entry (any scanner) plus a bucketed count of
+// discoveries added since that scan started. Powers the "What's new" grid.
+
+export interface LastScanSummary {
+  latestScanAt: string | null;
+  newProjects: Discovery[];
+  newMentions: Discovery[];
+  newFunding: Discovery[];
+}
+
+async function lastScanSummary(): Promise<LastScanSummary> {
+  const { data: scanRows } = await supabase
+    .from("scan_log")
+    .select("started_at")
+    .order("started_at", { ascending: false })
+    .limit(1);
+  const latestScanAt = scanRows?.[0]?.started_at ?? null;
+
+  // Fallback: if no scan_log row exists, look at discoveries from the last 24h
+  // so the section still shows something useful.
+  const cutoff =
+    latestScanAt ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from("discoveries_enriched")
+    .select("*")
+    .gte("discovered_at", cutoff)
+    .order("discovered_at", { ascending: false })
+    .limit(200);
+  if (error) throw error;
+
+  const rows = (data ?? []) as Discovery[];
+  return {
+    latestScanAt,
+    newProjects: rows.filter((r) => r.entity_type === "project"),
+    newMentions: rows.filter((r) => r.entity_type === "social_mention"),
+    newFunding: rows.filter((r) => r.entity_type === "funding_round"),
+  };
+}
+
 async function scan() {
   // Manual scan trigger is GitHub Actions only — exposed as a no-op here.
   console.warn(
@@ -280,6 +321,7 @@ export const api = {
   reviewDiscovery,
   solvers,
   scanLog,
+  lastScanSummary,
   scan,
 };
 
