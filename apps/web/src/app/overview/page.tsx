@@ -24,6 +24,28 @@ type Project = import("@/lib/api").Project & {
 };
 type Mention = import("@/lib/api").Mention;
 type Stats = import("@/lib/api").Stats;
+type LastScanSummary = import("@/lib/api").LastScanSummary;
+
+// Category keywords matched as case-insensitive substrings so DB values like
+// "solver_infra", "dex_aggregator", "bridge_infra" fall into the right bucket.
+const TOP_BUCKETS: { label: string; match: string[] }[] = [
+  { label: "Solvers", match: ["solver"] },
+  { label: "Protocols", match: ["dex", "aggregator", "orderflow", "protocol"] },
+  { label: "Platforms", match: ["bridge", "infra"] },
+  { label: "Projects", match: [] }, // empty = all categories
+];
+
+function relativeTime(iso: string | null): string {
+  if (!iso) return "never";
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.round(hrs / 24);
+  return `${days}d ago`;
+}
 
 const CATEGORY_FILTERS = ["All", "Solver", "Bridge", "DEX", "Infrastructure", "Aggregator", "Orderflow"];
 
@@ -49,6 +71,7 @@ export default function HomePage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [mentions, setMentions] = useState<Mention[]>([]);
+  const [lastScan, setLastScan] = useState<LastScanSummary | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [loading, setLoading] = useState(true);
@@ -58,14 +81,16 @@ export default function HomePage() {
   useEffect(() => {
     async function load() {
       try {
-        const [s, p, m] = await Promise.all([
+        const [s, p, m, ls] = await Promise.all([
           api.stats(),
           api.projects(),
           api.mentions({ limit: "12" }),
+          api.lastScanSummary(),
         ]);
         setStats(s);
         setProjects(p);
         setMentions(m);
+        setLastScan(ls);
       } catch (e) {
         console.error(e);
       } finally {
@@ -74,6 +99,40 @@ export default function HomePage() {
     }
     load();
   }, []);
+
+  const scanCutoff = lastScan?.latestScanAt
+    ? new Date(lastScan.latestScanAt).getTime()
+    : 0;
+  const isNewSinceScan = (p: Project) =>
+    scanCutoff > 0 && p.first_seen
+      ? new Date(p.first_seen).getTime() >= scanCutoff
+      : false;
+
+  // First-match-wins so a project like "solver_infra" lands in Solvers, not in
+  // both Solvers and Platforms. "Projects" bucket (empty match) catches the rest.
+  const assigned = new Set<number>();
+  const topByBucket = TOP_BUCKETS.map((bucket) => {
+    const inBucket = projects.filter((p) => {
+      if (assigned.has(p.id)) return false;
+      const c = (p.category || "").toLowerCase();
+      const matches = bucket.match.length === 0
+        ? true
+        : bucket.match.some((kw) => c.includes(kw));
+      if (matches) assigned.add(p.id);
+      return matches;
+    });
+    return {
+      label: bucket.label,
+      items: inBucket
+        .sort((a, b) => (b.relevance_score || 0) - (a.relevance_score || 0))
+        .slice(0, 4),
+    };
+  });
+
+  const newTotal =
+    (lastScan?.newProjects.length ?? 0) +
+    (lastScan?.newMentions.length ?? 0) +
+    (lastScan?.newFunding.length ?? 0);
 
   const filteredProjects = projects
     .filter(
@@ -121,6 +180,89 @@ export default function HomePage() {
 
   return (
     <div className="space-y-8 relative">
+      {/* What's new — since-last-scan summary + top-to-check grid */}
+      <section className="space-y-4">
+        <div className="flex items-end justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">What's new</h2>
+            <p className="text-xs text-gray-500 mt-1">
+              Last scan {relativeTime(lastScan?.latestScanAt ?? null)}
+              {newTotal > 0 && <> · {newTotal} new items</>}
+            </p>
+          </div>
+          <a
+            href="/discoveries"
+            className="text-sm text-gray-500 hover:text-gray-900 flex items-center gap-1 transition-colors"
+          >
+            View all <ArrowRight className="w-3.5 h-3.5" />
+          </a>
+        </div>
+
+        {/* New entries — 3-column grid by type */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <NewEntriesCard
+            title="New projects"
+            count={lastScan?.newProjects.length ?? 0}
+            items={lastScan?.newProjects ?? []}
+          />
+          <NewEntriesCard
+            title="New mentions"
+            count={lastScan?.newMentions.length ?? 0}
+            items={lastScan?.newMentions ?? []}
+          />
+          <NewEntriesCard
+            title="New funding"
+            count={lastScan?.newFunding.length ?? 0}
+            items={lastScan?.newFunding ?? []}
+          />
+        </div>
+
+        {/* Top to check — 4-column category grid */}
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-3 mt-2">
+            Top to check today
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            {topByBucket.map((b) => (
+              <div
+                key={b.label}
+                className="bg-white border border-gray-200 rounded-xl p-4"
+              >
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  {b.label}
+                </div>
+                {b.items.length === 0 ? (
+                  <div className="text-xs text-gray-400">No entries yet</div>
+                ) : (
+                  <div className="space-y-0">
+                    {b.items.map((p, i) => (
+                      <div
+                        key={p.id}
+                        onClick={() => setSelectedProject(p)}
+                        className="flex items-center gap-2 py-2 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 -mx-2 px-2 rounded"
+                      >
+                        <span className="text-xs text-gray-400 w-4 tabular-nums">
+                          {i + 1}
+                        </span>
+                        <ProjectLogo name={p.name} size="sm" />
+                        <span className="text-sm font-medium text-gray-900 flex-1 truncate">
+                          {p.name}
+                        </span>
+                        {isNewSinceScan(p) && (
+                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#FF6B2C]/10 text-[#FF6B2C]">
+                            NEW
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Main column */}
@@ -400,6 +542,55 @@ function QuickStatItem({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0">
       <span className="text-xs text-gray-500">{label}</span>
       <span className="text-sm font-semibold tabular-nums text-gray-900">{value}</span>
+    </div>
+  );
+}
+
+function NewEntriesCard({
+  title,
+  count,
+  items,
+}: {
+  title: string;
+  count: number;
+  items: import("@/lib/api").Discovery[];
+}) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-4">
+      <div className="flex items-baseline justify-between mb-3">
+        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+          {title}
+        </span>
+        <span className="text-2xl font-bold text-gray-900 tabular-nums">
+          {count}
+        </span>
+      </div>
+      {items.length === 0 ? (
+        <div className="text-xs text-gray-400">Nothing new this scan</div>
+      ) : (
+        <div className="space-y-0">
+          {items.slice(0, 4).map((d) => (
+            <div
+              key={d.id}
+              className="py-1.5 border-b border-gray-100 last:border-0"
+            >
+              <div className="text-sm text-gray-900 truncate">
+                {d.name || "Untitled"}
+              </div>
+              {d.detail && (
+                <div className="text-[11px] text-gray-500 truncate">
+                  {d.detail}
+                </div>
+              )}
+            </div>
+          ))}
+          {items.length > 4 && (
+            <div className="text-[11px] text-gray-400 pt-2">
+              +{items.length - 4} more
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
