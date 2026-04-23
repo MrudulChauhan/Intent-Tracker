@@ -9,6 +9,7 @@ import {
   MessageSquare,
   GitBranch,
   Sparkles,
+  Network,
   Search,
 } from "lucide-react";
 
@@ -18,6 +19,7 @@ const links = [
   { href: "/solvers", label: "Solvers", icon: Zap },
   { href: "/social", label: "Social", icon: MessageSquare },
   { href: "/github", label: "GitHub", icon: GitBranch },
+  { href: "/graph", label: "Graph", icon: Network },
   { href: "/discoveries", label: "Discoveries", icon: Sparkles },
 ];
 

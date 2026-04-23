@@ -275,9 +275,6 @@ class SupabaseWriter:
         overwrites the previous result instead of appending duplicates.
         """
         payload = {k: row[k] for k in self._NARRATIVE_COLS if k in row}
-        # Defensive: protocols_mentioned / evidence_mention_ids land in jsonb
-        # cols — if a caller hands us a JSON string, decode it so PostgREST
-        # stores it as proper JSON rather than a quoted string.
         for jsonb_col in ("protocols_mentioned", "evidence_mention_ids"):
             if isinstance(payload.get(jsonb_col), str):
                 try:
@@ -290,14 +287,8 @@ class SupabaseWriter:
         return result.get("id") if result else None
 
     def get_recent_narratives(self, limit: int = 1) -> list[dict]:
-        """Return narratives from the most recent `limit` weeks, ordered by rank.
-
-        For the default `limit=1`, this returns just the latest week's themes
-        (typically 3-5 rows). Used by the overview page's narratives card.
-        """
+        """Return narratives from the most recent `limit` weeks, ordered by rank."""
         url = f"{self.base}/narratives"
-        # Grab up to 5 weeks × 5 themes; we'll filter client-side to the most
-        # recent `limit` distinct week_start values.
         resp = self.client.get(
             url,
             params={
@@ -315,7 +306,6 @@ class SupabaseWriter:
         rows = resp.json() or []
         if not rows:
             return []
-        # Keep only the `limit` most-recent distinct week_starts
         seen_weeks: list[str] = []
         kept: list[dict] = []
         for r in rows:
@@ -326,6 +316,88 @@ class SupabaseWriter:
                 seen_weeks.append(wk)
             kept.append(r)
         return kept
+
+    # ---- graph: entities + relationships (migration 004) ----------------
+
+    def upsert_entity(self, entity: dict) -> Optional[int]:
+        """Upsert into `entities` on (entity_type, name). Returns entity id."""
+        cols = ["entity_type", "external_id", "name", "slug", "metadata"]
+        row = {k: entity[k] for k in cols if k in entity}
+        if "name" in row and isinstance(row["name"], str):
+            row["name"] = row["name"].strip()
+        result = self._post(
+            "entities", row, on_conflict="entity_type,name"
+        )
+        if result:
+            return result.get("id")
+        url = f"{self.base}/entities"
+        params = {
+            "entity_type": f"eq.{row.get('entity_type')}",
+            "name": f"eq.{row.get('name')}",
+            "limit": "1",
+        }
+        resp = self.client.get(url, params=params)
+        if resp.status_code >= 400:
+            return None
+        data = resp.json()
+        return data[0].get("id") if data else None
+
+    def insert_relationship(self, edge: dict) -> Optional[int]:
+        """Insert an edge. Idempotent via ignore-duplicates on the unique triple."""
+        cols = [
+            "from_id", "to_id", "relationship_type",
+            "source_url", "confidence", "metadata",
+        ]
+        row = {k: edge[k] for k in cols if k in edge}
+        result = self._post(
+            "relationships", row,
+            on_conflict="from_id,to_id,relationship_type",
+            ignore_duplicates=True,
+        )
+        return result.get("id") if result else None
+
+    def fetch_entities_by_ids(self, ids) -> list[dict]:
+        if not ids:
+            return []
+        url = f"{self.base}/entities"
+        id_list = ",".join(str(int(i)) for i in ids)
+        resp = self.client.get(url, params={"id": f"in.({id_list})"})
+        if resp.status_code >= 400:
+            return []
+        return resp.json() or []
+
+    def fetch_edges_for_entities(self, ids) -> list[dict]:
+        """Return edges where from_id OR to_id is in `ids`."""
+        if not ids:
+            return []
+        id_list = ",".join(str(int(i)) for i in ids)
+        url = f"{self.base}/relationships"
+        resp = self.client.get(
+            url, params={"or": f"(from_id.in.({id_list}),to_id.in.({id_list}))"}
+        )
+        if resp.status_code >= 400:
+            return []
+        return resp.json() or []
+
+    def fetch_graph_for_project(self, project_id: int) -> dict:
+        """1-hop neighborhood for the given `projects.id`."""
+        url = f"{self.base}/entities"
+        resp = self.client.get(url, params={
+            "entity_type": "eq.project",
+            "external_id": f"eq.{int(project_id)}",
+            "limit": "1",
+        })
+        if resp.status_code >= 400 or not resp.json():
+            return {"nodes": [], "edges": []}
+        entity_id = resp.json()[0]["id"]
+
+        edges = self.fetch_edges_for_entities({entity_id})
+        node_ids: set[int] = {entity_id}
+        for e in edges:
+            node_ids.add(int(e["from_id"]))
+            node_ids.add(int(e["to_id"]))
+        nodes = self.fetch_entities_by_ids(node_ids)
+        return {"nodes": nodes, "edges": edges}
 
     # ---- helpers used by scheduler --------------------------------------
 

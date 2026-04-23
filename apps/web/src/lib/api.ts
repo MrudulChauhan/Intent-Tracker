@@ -349,6 +349,95 @@ async function narratives(limit = 1): Promise<Narrative[]> {
   return out;
 }
 
+// ---- Graph -----------------------------------------------------------------
+
+export interface GraphNode {
+  id: number;
+  entity_type: string;
+  name: string;
+  external_id?: number;
+  slug?: string;
+  degree?: number;
+}
+
+export interface GraphEdge {
+  id: number;
+  from_id: number;
+  to_id: number;
+  relationship_type: string;
+  confidence: number;
+  source_url?: string;
+}
+
+export interface GraphResponse {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+const GRAPH_DEFAULT_LIMIT = 200;
+
+async function graph(limit: number = GRAPH_DEFAULT_LIMIT): Promise<GraphResponse> {
+  // Top N nodes by degree, then fetch all edges between those nodes so the
+  // rendered sub-graph is self-consistent.
+  const { data: topNodes, error: topErr } = await supabase
+    .from("entity_degree")
+    .select("id,entity_type,external_id,name,slug,degree")
+    .order("degree", { ascending: false })
+    .limit(limit);
+  if (topErr) throw topErr;
+
+  const nodes = (topNodes ?? []) as GraphNode[];
+  if (nodes.length === 0) return { nodes: [], edges: [] };
+
+  const ids = nodes.map((n) => n.id);
+  const { data: edgeRows, error: edgeErr } = await supabase
+    .from("relationships")
+    .select("id,from_id,to_id,relationship_type,confidence,source_url")
+    .in("from_id", ids)
+    .in("to_id", ids);
+  if (edgeErr) throw edgeErr;
+
+  return {
+    nodes,
+    edges: (edgeRows ?? []) as GraphEdge[],
+  };
+}
+
+async function graphForProject(projectId: number): Promise<GraphResponse> {
+  // Find the entity row for this project (entity_type='project').
+  const { data: root } = await supabase
+    .from("entities")
+    .select("id,entity_type,external_id,name,slug")
+    .eq("entity_type", "project")
+    .eq("external_id", projectId)
+    .maybeSingle();
+  if (!root) return { nodes: [], edges: [] };
+
+  const rootId = (root as { id: number }).id;
+  const { data: edgeRows } = await supabase
+    .from("relationships")
+    .select("id,from_id,to_id,relationship_type,confidence,source_url")
+    .or(`from_id.eq.${rootId},to_id.eq.${rootId}`);
+
+  const edges = (edgeRows ?? []) as GraphEdge[];
+  const neighborIds = new Set<number>([rootId]);
+  for (const e of edges) {
+    neighborIds.add(e.from_id);
+    neighborIds.add(e.to_id);
+  }
+
+  if (neighborIds.size === 0) return { nodes: [root as GraphNode], edges: [] };
+  const { data: nodeRows } = await supabase
+    .from("entities")
+    .select("id,entity_type,external_id,name,slug")
+    .in("id", Array.from(neighborIds));
+
+  return {
+    nodes: (nodeRows ?? []) as GraphNode[],
+    edges,
+  };
+}
+
 export const api = {
   stats: overviewStats,
   projects,
@@ -363,6 +452,8 @@ export const api = {
   lastScanSummary,
   scan,
   narratives,
+  graph,
+  graphForProject,
 };
 
 // Back-compat for callers that used the raw fetchApi helper
