@@ -34,6 +34,16 @@ if settings.dune_api_key:
 else:
     DuneScanner = None
 
+# P1.4 — Twitter scanner is behind an env flag (default off) because it
+# requires a throwaway X account + cookies. See docs/twitter_scanner.md.
+_TWITTER_ENABLED = os.getenv("TWITTER_SCANNER_ENABLED", "false").strip().lower() in (
+    "1", "true", "yes", "on",
+)
+if _TWITTER_ENABLED:
+    from scanners.twitter import TwitterScanner
+else:
+    TwitterScanner = None  # type: ignore[assignment]
+
 # Writer — routes to Supabase or SQLite based on env
 from core.writer import Writer, get_writer
 
@@ -65,10 +75,7 @@ if DuneScanner is not None:
 
 # -----------------------------------------------------------------------------
 # On-chain Dune scanner (P1.5) — feature-flagged.
-#
-# Set ONCHAIN_SCANNER_ENABLED=true in the environment to include it in the
-# nightly run. Default-off so incomplete Dune query coverage (see
-# scanners/onchain_dune.py::DUNE_QUERIES) cannot break the existing pipeline.
+# Set ONCHAIN_SCANNER_ENABLED=true to include it in the nightly run.
 # -----------------------------------------------------------------------------
 _ONCHAIN_ENABLED = os.environ.get("ONCHAIN_SCANNER_ENABLED", "false").strip().lower() in (
     "1", "true", "yes", "on",
@@ -83,6 +90,11 @@ if _ONCHAIN_ENABLED:
     except Exception as exc:  # pragma: no cover
         logger.warning("Failed to load OnchainDuneScanner (flag was on): %s", exc)
         OnchainDuneScanner = None
+
+# Twitter runs after rss/reddit/google_news so any projects those scanners
+# discovered today are already upserted and available for entity linking.
+if TwitterScanner is not None:
+    _SCANNER_CLASSES.append(TwitterScanner)
 
 
 def _map_github_metric(raw: dict) -> dict:

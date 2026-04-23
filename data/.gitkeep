@@ -1,0 +1,4 @@
+# Placeholder to keep the data/ directory in git.
+# Runtime artifacts here (SQLite DBs, Twitter cookie jars) are gitignored
+# via .gitignore; this file just ensures the directory exists so the
+# scanner can write to data/x_cookies.json on first login.

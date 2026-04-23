@@ -32,6 +32,11 @@ data/*.db
 data/*.db-shm
 data/*.db-wal
 
+# P1.4 — X/Twitter cookie jar (contains session tokens for the throwaway
+# account). Never commit. See scripts/twitter_login.py.
+data/x_cookies.json
+data/*.cookies.json
+
 # Streamlit
 .streamlit/secrets.toml
 
@@ -52,3 +57,4 @@ logs/
 # uv
 .uv/
 uv.lock.bak
+.claude/
