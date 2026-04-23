@@ -11,7 +11,7 @@ import json
 import logging
 import os
 import time
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import Any, Dict
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -39,6 +39,7 @@ from core.writer import Writer, get_writer
 
 # Processing
 from processing.enrichment import extract_funding_info  # noqa: F401 (used elsewhere)
+from processing.narratives import generate_weekly_narratives
 
 
 logger = logging.getLogger(__name__)
@@ -259,6 +260,57 @@ def run_single_scanner(scanner_name: str) -> Dict[str, Any]:
     raise ValueError(f"Unknown scanner '{scanner_name}'. Available: {available}")
 
 
+def _narratives_enabled() -> bool:
+    """Feature flag gate for the weekly narratives job.
+
+    Reads NARRATIVES_ENABLED directly from the process env (rather than the
+    pydantic settings object) so the flag can be flipped without a config
+    migration. Default is false — narratives are an opt-in, paid-API feature.
+    """
+    val = os.environ.get("NARRATIVES_ENABLED", "").strip().lower()
+    return val in ("1", "true", "yes", "on")
+
+
+def run_weekly_narratives() -> Dict[str, Any]:
+    """Generate narratives for the current week (Monday-anchored).
+
+    Fires on Mondays; pulls the previous 7 days of social_mentions, clusters
+    them via Claude, and writes results to the `narratives` table. Gated
+    behind the NARRATIVES_ENABLED env flag — called from scheduler cron
+    AND available as a manual entrypoint via `--narratives`.
+    """
+    if not _narratives_enabled():
+        logger.info(
+            "NARRATIVES_ENABLED is not set; skipping weekly narratives job."
+        )
+        return {"status": "skipped", "reason": "flag_disabled"}
+
+    # Week start = the most recent Monday (today if today is Monday).
+    today = date.today()
+    week_start = today - timedelta(days=today.weekday())
+
+    writer = get_writer()
+    try:
+        narratives = generate_weekly_narratives(writer, week_start)
+        logger.info(
+            "Weekly narratives job finished: %d themes for week %s",
+            len(narratives), week_start.isoformat(),
+        )
+        return {
+            "status": "success",
+            "week_start": week_start.isoformat(),
+            "count": len(narratives),
+        }
+    except Exception as exc:
+        logger.exception("Weekly narratives job failed: %s", exc)
+        return {"status": "error", "error": str(exc)}
+    finally:
+        try:
+            writer.close()
+        except Exception:  # noqa: S110 — close is best-effort
+            pass
+
+
 def start_scheduler() -> BackgroundScheduler:
     """Create and start a BackgroundScheduler running weekly scans."""
     scheduler = BackgroundScheduler()
@@ -268,6 +320,22 @@ def start_scheduler() -> BackgroundScheduler:
         minute=settings.scan_minute,
     )
     scheduler.add_job(run_all_scanners, trigger=trigger, id="weekly_scan")
+
+    # Weekly narrative clustering — Mondays at 07:00 UTC (just after the
+    # normal weekly scan). Only registers when the feature flag is on, but
+    # the job itself also checks the flag so hot-toggling is safe.
+    if _narratives_enabled():
+        scheduler.add_job(
+            run_weekly_narratives,
+            trigger=CronTrigger(day_of_week="mon", hour=7, minute=0),
+            id="weekly_narratives",
+        )
+        logger.info("Weekly narratives job registered (Mondays 07:00 UTC).")
+    else:
+        logger.info(
+            "NARRATIVES_ENABLED is off — weekly narratives job not registered."
+        )
+
     scheduler.start()
     logger.info(
         "Scheduler started. Scans scheduled at day=%s hour=%s minute=%s",
@@ -284,10 +352,15 @@ if __name__ == "__main__":
                         help="Run all scanners once and exit")
     parser.add_argument("--scanner", type=str, default=None,
                         help="Run a single scanner by name and exit")
+    parser.add_argument("--narratives", action="store_true",
+                        help="Run the weekly narratives job once and exit "
+                             "(requires NARRATIVES_ENABLED + ANTHROPIC_API_KEY)")
     args = parser.parse_args()
 
     if args.scanner:
         print(run_single_scanner(args.scanner))
+    elif args.narratives:
+        print(run_weekly_narratives())
     elif args.once:
         print(run_all_scanners())
     else:

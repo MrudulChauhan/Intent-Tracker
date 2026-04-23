@@ -30,6 +30,9 @@ dependencies = [
 
     # On-chain scanner (P1.5) — Dune Analytics SDK
     "dune-client>=1.7",
+
+    # LLM (weekly narrative clustering — P1.9)
+    "anthropic>=0.40",
 ]
 
 [project.optional-dependencies]

@@ -83,6 +83,16 @@ export interface ScanLogEntry {
   error_message?: string;
 }
 
+export interface Narrative {
+  id: number;
+  week_start: string;
+  rank: number;
+  theme?: string;
+  summary?: string;
+  protocols_mentioned?: string[];
+  evidence_mention_ids?: number[];
+}
+
 // ---- Stats -----------------------------------------------------------------
 
 async function overviewStats(): Promise<Stats> {
@@ -312,6 +322,33 @@ async function scan() {
   );
 }
 
+// ---- Narratives (weekly LLM-clustered themes) -----------------------------
+
+async function narratives(limit = 1): Promise<Narrative[]> {
+  // Pull enough rows to cover `limit` distinct weeks (up to ~5 themes/week),
+  // then filter client-side to keep only the most-recent N week_starts.
+  const { data, error } = await supabase
+    .from("narratives")
+    .select("*")
+    .order("week_start", { ascending: false })
+    .order("rank", { ascending: true })
+    .limit(Math.max(limit * 5, 5));
+  if (error) throw error;
+  const rows = (data ?? []) as Narrative[];
+  if (rows.length === 0) return [];
+
+  const keepWeeks: string[] = [];
+  const out: Narrative[] = [];
+  for (const r of rows) {
+    if (!keepWeeks.includes(r.week_start)) {
+      if (keepWeeks.length >= limit) break;
+      keepWeeks.push(r.week_start);
+    }
+    out.push(r);
+  }
+  return out;
+}
+
 export const api = {
   stats: overviewStats,
   projects,
@@ -325,6 +362,7 @@ export const api = {
   scanLog,
   lastScanSummary,
   scan,
+  narratives,
 };
 
 // Back-compat for callers that used the raw fetchApi helper

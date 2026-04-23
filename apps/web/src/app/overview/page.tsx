@@ -8,6 +8,7 @@ import { StatsRow, LeaderboardCard } from "@/components/stats-row";
 import { ProjectCard } from "@/components/project-card";
 import { ProjectModal } from "@/components/project-modal";
 import { ProjectLogo } from "@/components/project-logo";
+import { NarrativesCard } from "@/components/narratives-card";
 import {
   BarChart,
   Bar,
@@ -26,6 +27,7 @@ type Project = import("@/lib/api").Project & {
 type Mention = import("@/lib/api").Mention;
 type Stats = import("@/lib/api").Stats;
 type LastScanSummary = import("@/lib/api").LastScanSummary;
+type Narrative = import("@/lib/api").Narrative;
 
 // Top-to-check buckets pull from the canonical taxonomy module, with
 // first-match-wins assignment below.
@@ -80,6 +82,7 @@ export default function HomePage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [mentions, setMentions] = useState<Mention[]>([]);
   const [lastScan, setLastScan] = useState<LastScanSummary | null>(null);
+  const [narratives, setNarratives] = useState<Narrative[]>([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [loading, setLoading] = useState(true);
@@ -89,16 +92,20 @@ export default function HomePage() {
   useEffect(() => {
     async function load() {
       try {
-        const [s, p, m, ls] = await Promise.all([
+        const [s, p, m, ls, nr] = await Promise.all([
           api.stats(),
           api.projects(),
           api.mentions({ limit: "12" }),
           api.lastScanSummary(),
+          // Narratives is optional — absence of the table (pre-migration)
+          // shouldn't break the page. Swallow errors into an empty list.
+          api.narratives(1).catch(() => [] as Narrative[]),
         ]);
         setStats(s);
         setProjects(p);
         setMentions(m);
         setLastScan(ls);
+        setNarratives(nr);
       } catch (e) {
         console.error(e);
       } finally {
@@ -267,6 +274,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Weekly LLM-clustered narratives — renders only when data is present */}
+      <NarrativesCard narratives={narratives} />
 
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
