@@ -6,7 +6,10 @@ import { api, type GraphNode, type GraphEdge, type Project } from "@/lib/api";
 import { ProjectModal } from "@/components/project-modal";
 
 // react-force-graph-2d uses <canvas> so we must disable SSR.
-const ForceGraph2D = dynamic(
+// Cast through `any` because the library's default node generic lacks our
+// custom fields (entity_type, name) and typing the generics here adds noise
+// without catching real bugs — this page is the only consumer.
+const ForceGraph2D: any = dynamic(
   () => import("react-force-graph-2d").then((m) => m.default),
   { ssr: false }
 );
@@ -241,7 +244,7 @@ export default function GraphPage() {
             cooldownTicks={100}
             onNodeClick={(n: ForceNode) => handleNodeClick(n)}
             nodeCanvasObjectMode={() => "after"}
-            nodeCanvasObject={(n: ForceNode, ctx, globalScale) => {
+            nodeCanvasObject={(n: ForceNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
               // Draw the label only when zoomed in enough to keep it readable.
               if (globalScale < 1.2) return;
               const label = n.name;
