@@ -53,11 +53,10 @@ logger = logging.getLogger(__name__)
 # -----------------------------------------------------------------------------
 DUNE_QUERIES: dict[str, dict[str, Any]] = {
     "cow_protocol": {
-        # CoW Swap V2 User Trade Data — maintained by CoW team / bh2smith.
-        # https://dune.com/queries/1888958
-        # Columns: block_time, tx_hash, solver, trader, sell_token, buy_token,
-        # atoms_sold, atoms_bought, usd_value. Trade-level (per-fill).
-        "query_id": 1888958,
+        # 1888958 (V2 User Trade Data) uses the DEPRECATED Dune v1 engine
+        # and can no longer be executed via the API. Find or fork a DuneSQL
+        # (v2) query for CoW solver fills and paste the ID here.
+        "query_id": None,
         "chain": "ethereum",
     },
     "uniswap_x": {
@@ -105,13 +104,25 @@ DUNE_QUERIES: dict[str, dict[str, Any]] = {
 # the first alias that exists on the row wins. Keep lowercase.
 _EXPECTED_COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
     "block_time":    ("block_time", "blocktime", "evt_block_time", "time", "ts"),
-    "tx_hash":       ("tx_hash", "hash", "evt_tx_hash", "transaction_hash"),
-    "solver_address": ("solver", "solver_address", "filler", "resolver"),
+    "tx_hash":       ("tx_hash", "hash", "evt_tx_hash", "transaction_hash", "txid"),
+    "solver_address": (
+        "solver", "solver_address", "filler", "resolver", "relayer",
+        "maker", "market_maker", "mm_address", "contract_address", "name",
+    ),
     "chain":         ("chain", "blockchain"),
-    "amount_in_usd": ("amount_in_usd", "volume_usd", "usd_value", "usd"),
-    "token_in":      ("token_in", "sell_token", "src_token", "input_token"),
-    "token_out":     ("token_out", "buy_token", "dst_token", "output_token"),
-    "user_address":  ("user", "user_address", "trader", "owner"),
+    "amount_in_usd": (
+        "amount_in_usd", "amount_usd", "volume_usd", "usd_value", "usd",
+        "trade_value_usd",
+    ),
+    "token_in":      (
+        "token_in", "sell_token", "src_token", "input_token",
+        "token_sold_symbol", "baseToken",
+    ),
+    "token_out":     (
+        "token_out", "buy_token", "dst_token", "output_token",
+        "token_bought_symbol", "quoteToken",
+    ),
+    "user_address":  ("user", "user_address", "trader", "owner", "taker", "swapper", "depositor"),
 }
 
 
@@ -238,16 +249,32 @@ class OnchainDuneScanner(BaseScanner):
         return DuneClient(api_key=api_key)
 
     def _fetch_latest_rows(self, query_id: int) -> list[dict[str, Any]]:
-        """Pull the most recent cached execution for ``query_id``.
+        """Pull rows for ``query_id``, preferring cached results but falling
+        back to a fresh execution when the cache is cold.
 
-        Uses ``get_latest_result`` so we never trigger a (billable) execution.
+        ``get_latest_result`` is free but 404s if the query has no cached
+        execution. ``run_query`` costs Dune credits but actually works on
+        otherwise-inactive community queries. We try cache first, then
+        execute on 404 / empty-cache.
+
         Returns an empty list on empty results.
         """
         assert self._client is not None, "DuneClient not initialised"
         try:
             response = self._client.get_latest_result(query_id)
-        except Exception:
-            raise
+        except Exception as exc:
+            # 404 "No execution found" means nobody has run this query
+            # recently. Trigger a fresh execution (costs credits).
+            msg = str(exc)
+            if "not found" in msg.lower() or "404" in msg:
+                logger.info(
+                    "onchain_dune: cache miss for query %s, executing fresh",
+                    query_id,
+                )
+                from dune_client.query import QueryBase
+                response = self._client.run_query(QueryBase(query_id=query_id))
+            else:
+                raise
 
         result = getattr(response, "result", None)
         if result is None:
