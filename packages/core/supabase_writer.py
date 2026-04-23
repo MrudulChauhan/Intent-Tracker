@@ -183,6 +183,63 @@ class SupabaseWriter:
         result = self._post("protocol_metrics", row)
         return result.get("id") if result else None
 
+    # ---- on-chain (P1.5) ------------------------------------------------
+
+    _INTENT_FILL_COLS = [
+        "protocol", "solver_address", "tx_hash", "block_time", "chain",
+        "amount_in_usd", "token_in", "token_out", "user_address", "raw_event",
+    ]
+
+    def insert_intent_fill(self, row: dict) -> Optional[int]:
+        """Upsert a single intent fill on ``tx_hash``. Returns the row id on
+        success, ``None`` on HTTP failure. Safe to call for duplicate tx_hashes
+        — they merge-duplicate to keep the latest raw_event."""
+        payload = {k: row[k] for k in self._INTENT_FILL_COLS if k in row}
+        result = self._post(
+            "intent_fills", payload, on_conflict="tx_hash"
+        )
+        return result.get("id") if result else None
+
+    _SOLVER_STAT_COLS = [
+        "solver_address", "date", "protocol", "chain",
+        "fills_count", "volume_usd", "unique_users",
+    ]
+
+    def upsert_solver_daily_stat(self, row: dict) -> Optional[int]:
+        """Upsert a per-(solver, date, protocol, chain) rollup. The unique
+        constraint in migration 002 is the conflict target."""
+        payload = {k: row[k] for k in self._SOLVER_STAT_COLS if k in row}
+        result = self._post(
+            "solver_daily_stats",
+            payload,
+            on_conflict="solver_address,date,protocol,chain",
+        )
+        return result.get("id") if result else None
+
+    def get_solver_directory(self) -> dict[str, str]:
+        """Return an ``address → display_name`` mapping for known solvers.
+        Empty dict on failure; callers should treat missing keys as
+        ``unknown`` rather than raising."""
+        url = f"{self.base}/solvers_directory"
+        params = {"select": "solver_address,display_name"}
+        try:
+            resp = self.client.get(url, params=params)
+        except httpx.HTTPError as exc:
+            logger.warning("Failed to fetch solvers_directory: %s", exc)
+            return {}
+        if resp.status_code >= 400:
+            logger.warning(
+                "Supabase GET solvers_directory failed (%d): %s",
+                resp.status_code, resp.text[:200],
+            )
+            return {}
+        rows = resp.json() or []
+        return {
+            (r.get("solver_address") or "").lower(): (r.get("display_name") or "")
+            for r in rows
+            if r.get("solver_address")
+        }
+
     def log_scan(self, scanner_name: str, started_at: str, finished_at: str,
                  status: str, items_found: int,
                  error_message: Optional[str] = None) -> Optional[int]:
