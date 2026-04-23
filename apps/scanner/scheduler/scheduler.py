@@ -9,6 +9,7 @@ weekly schedule via APScheduler.
 import argparse
 import json
 import logging
+import os
 import time
 from datetime import datetime
 from typing import Any, Dict
@@ -60,6 +61,27 @@ _SCANNER_CLASSES = [
 
 if DuneScanner is not None:
     _SCANNER_CLASSES.append(DuneScanner)
+
+# -----------------------------------------------------------------------------
+# On-chain Dune scanner (P1.5) — feature-flagged.
+#
+# Set ONCHAIN_SCANNER_ENABLED=true in the environment to include it in the
+# nightly run. Default-off so incomplete Dune query coverage (see
+# scanners/onchain_dune.py::DUNE_QUERIES) cannot break the existing pipeline.
+# -----------------------------------------------------------------------------
+_ONCHAIN_ENABLED = os.environ.get("ONCHAIN_SCANNER_ENABLED", "false").strip().lower() in (
+    "1", "true", "yes", "on",
+)
+
+OnchainDuneScanner = None
+if _ONCHAIN_ENABLED:
+    try:
+        from scanners.onchain_dune import OnchainDuneScanner  # noqa: F401
+        _SCANNER_CLASSES.append(OnchainDuneScanner)
+        logger.info("onchain_dune scanner enabled via ONCHAIN_SCANNER_ENABLED")
+    except Exception as exc:  # pragma: no cover
+        logger.warning("Failed to load OnchainDuneScanner (flag was on): %s", exc)
+        OnchainDuneScanner = None
 
 
 def _map_github_metric(raw: dict) -> dict:
@@ -193,11 +215,18 @@ def _run(scanners: list) -> Dict[str, Any]:
         for scanner in scanners:
             started_at = datetime.utcnow().isoformat()
             try:
+                # Scanners that write to their own tables (e.g. onchain_dune)
+                # pick the writer up via a public attribute rather than the
+                # legacy ScanResult → _process_scan_result path.
+                if hasattr(scanner, "_writer") and scanner._writer is None:
+                    scanner._writer = writer
                 logger.info("Running scanner: %s", scanner.name)
                 result = scanner.scan()
                 finished_at = datetime.utcnow().isoformat()
                 counts = _process_scan_result(scanner, result, writer)
-                total_items = sum(counts.values())
+                # Scanners that write to their own tables (e.g. onchain_dune)
+                # report volume via result.items_found rather than counts[*].
+                total_items = max(sum(counts.values()), result.items_found or 0)
                 writer.log_scan(
                     scanner.name, started_at, finished_at, "success", total_items
                 )
