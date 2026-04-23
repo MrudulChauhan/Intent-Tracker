@@ -195,6 +195,73 @@ class SupabaseWriter:
         )
         return result.get("id") if result else None
 
+    # ---- narratives (weekly LLM theme clustering) -----------------------
+
+    _NARRATIVE_COLS = [
+        "week_start", "rank", "theme", "summary",
+        "protocols_mentioned", "evidence_mention_ids", "model_used",
+    ]
+
+    def upsert_narrative(self, row: dict) -> Optional[int]:
+        """Insert a narrative row, or update it if (week_start, rank) collides.
+
+        The `narratives` table has a unique constraint on (week_start, rank),
+        so a second run of `generate_weekly_narratives` for the same week
+        overwrites the previous result instead of appending duplicates.
+        """
+        payload = {k: row[k] for k in self._NARRATIVE_COLS if k in row}
+        # Defensive: protocols_mentioned / evidence_mention_ids land in jsonb
+        # cols — if a caller hands us a JSON string, decode it so PostgREST
+        # stores it as proper JSON rather than a quoted string.
+        for jsonb_col in ("protocols_mentioned", "evidence_mention_ids"):
+            if isinstance(payload.get(jsonb_col), str):
+                try:
+                    payload[jsonb_col] = json.loads(payload[jsonb_col])
+                except (json.JSONDecodeError, TypeError):
+                    payload[jsonb_col] = None
+        result = self._post(
+            "narratives", payload, on_conflict="week_start,rank"
+        )
+        return result.get("id") if result else None
+
+    def get_recent_narratives(self, limit: int = 1) -> list[dict]:
+        """Return narratives from the most recent `limit` weeks, ordered by rank.
+
+        For the default `limit=1`, this returns just the latest week's themes
+        (typically 3-5 rows). Used by the overview page's narratives card.
+        """
+        url = f"{self.base}/narratives"
+        # Grab up to 5 weeks × 5 themes; we'll filter client-side to the most
+        # recent `limit` distinct week_start values.
+        resp = self.client.get(
+            url,
+            params={
+                "select": "*",
+                "order": "week_start.desc,rank.asc",
+                "limit": str(max(limit * 5, 5)),
+            },
+        )
+        if resp.status_code >= 400:
+            logger.warning(
+                "Supabase GET narratives failed (%d): %s",
+                resp.status_code, resp.text[:200],
+            )
+            return []
+        rows = resp.json() or []
+        if not rows:
+            return []
+        # Keep only the `limit` most-recent distinct week_starts
+        seen_weeks: list[str] = []
+        kept: list[dict] = []
+        for r in rows:
+            wk = r.get("week_start")
+            if wk not in seen_weeks:
+                if len(seen_weeks) >= limit:
+                    break
+                seen_weeks.append(wk)
+            kept.append(r)
+        return kept
+
     # ---- helpers used by scheduler --------------------------------------
 
     def find_project_id_by_name(self, name: str) -> Optional[int]:

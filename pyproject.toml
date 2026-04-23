@@ -27,6 +27,9 @@ dependencies = [
 
     # Supabase (Postgres-backed mode for scanner + migration)
     "httpx>=0.27.0",
+
+    # LLM (weekly narrative clustering — P1.9)
+    "anthropic>=0.40",
 ]
 
 [project.optional-dependencies]
