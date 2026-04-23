@@ -21,6 +21,8 @@ export interface Project {
   website?: string;
   chains?: string[] | string | null;
   category?: string;
+  role?: string;
+  intent_type?: string;
   status?: string;
   token_symbol?: string;
   coingecko_id?: string;

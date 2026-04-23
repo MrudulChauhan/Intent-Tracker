@@ -115,6 +115,7 @@ class SupabaseWriter:
 
     _PROJECT_COLS = [
         "name", "slug", "description", "website", "chains", "category",
+        "role", "intent_type",
         "status", "token_symbol", "coingecko_id", "defillama_slug",
         "github_org", "twitter_handle", "relevance_score", "is_manually_tracked",
     ]
@@ -127,6 +128,13 @@ class SupabaseWriter:
                 row["chains"] = json.loads(row["chains"])
             except (json.JSONDecodeError, TypeError):
                 row["chains"] = None
+        # Auto-classify to (role, intent_type) when the scanner only supplied
+        # the legacy `category`. Prevents drift like "Dexs"/"DEX" re-entering.
+        if ("role" not in row or "intent_type" not in row) and row.get("category"):
+            from core.taxonomy import classify
+            role, intent_type = classify(row["category"])
+            row.setdefault("role", role)
+            row.setdefault("intent_type", intent_type)
         row["last_updated"] = datetime.utcnow().isoformat()
         result = self._post("projects", row, on_conflict="name")
         if result:

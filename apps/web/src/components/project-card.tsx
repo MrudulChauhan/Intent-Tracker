@@ -2,10 +2,13 @@
 import { ExternalLink, GitBranch } from "lucide-react";
 import { ProjectLogo } from "./project-logo";
 import { ChainTag } from "./chain-logo";
+import { displayLabel } from "@/lib/taxonomy";
 
 interface ProjectCardProps {
   name: string;
   category?: string;
+  role?: string;
+  intent_type?: string;
   description?: string;
   chains?: string[] | string | null;
   token?: string;
@@ -20,7 +23,8 @@ interface ProjectCardProps {
 }
 
 export function ProjectCard(props: ProjectCardProps) {
-  const { name, category, description, chains, token, token_symbol, funding_total, website, twitter_handle, github_org, status, onClick } = props;
+  const { name, category, role, intent_type, description, chains, token, token_symbol, funding_total, website, twitter_handle, github_org, status, onClick } = props;
+  const label = displayLabel(role, intent_type) || category;
 
   let chainList: string[] = [];
   if (Array.isArray(chains)) {
@@ -45,8 +49,8 @@ export function ProjectCard(props: ProjectCardProps) {
               <h3 className="font-semibold text-gray-900 text-sm">
                 {name}
               </h3>
-              {category && (
-                <span className="text-xs text-gray-500">{category}</span>
+              {label && (
+                <span className="text-xs text-gray-500">{label}</span>
               )}
             </div>
           </div>

@@ -16,6 +16,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { TOP_BUCKETS as CANONICAL_BUCKETS, displayLabel } from "@/lib/taxonomy";
 
 type Project = import("@/lib/api").Project & {
   token?: string;
@@ -26,14 +27,9 @@ type Mention = import("@/lib/api").Mention;
 type Stats = import("@/lib/api").Stats;
 type LastScanSummary = import("@/lib/api").LastScanSummary;
 
-// Category keywords matched as case-insensitive substrings so DB values like
-// "solver_infra", "dex_aggregator", "bridge_infra" fall into the right bucket.
-const TOP_BUCKETS: { label: string; match: string[] }[] = [
-  { label: "Solvers", match: ["solver"] },
-  { label: "Protocols", match: ["dex", "aggregator", "orderflow", "protocol"] },
-  { label: "Platforms", match: ["bridge", "infra"] },
-  { label: "Projects", match: [] }, // empty = all categories
-];
+// Top-to-check buckets pull from the canonical taxonomy module, with
+// first-match-wins assignment below.
+const TOP_BUCKETS = CANONICAL_BUCKETS;
 
 function relativeTime(iso: string | null): string {
   if (!iso) return "never";
@@ -47,7 +43,19 @@ function relativeTime(iso: string | null): string {
   return `${days}d ago`;
 }
 
-const CATEGORY_FILTERS = ["All", "Solver", "Bridge", "DEX", "Infrastructure", "Aggregator", "Orderflow"];
+// Canonical filter pills (role or intent_type). "All" shows everything.
+// Matches the two-level taxonomy in @/lib/taxonomy.
+const CATEGORY_FILTERS: { label: string; match: (p: Project) => boolean }[] = [
+  { label: "All", match: () => true },
+  { label: "Solver", match: (p) => p.role === "solver" || (p.role === "infra" && p.intent_type === "swap") },
+  { label: "DEX", match: (p) => p.intent_type === "swap" && p.role !== "aggregator" && p.role !== "infra" },
+  { label: "Bridge", match: (p) => p.intent_type === "bridge" },
+  { label: "Aggregator", match: (p) => p.role === "aggregator" },
+  { label: "Derivatives", match: (p) => p.intent_type === "derivatives" },
+  { label: "Lending", match: (p) => p.intent_type === "lending" },
+  { label: "Infra", match: (p) => p.role === "infra" },
+  { label: "Interface", match: (p) => p.role === "interface" },
+];
 
 const POPULAR_SEARCHES = [
   { label: "UniswapX", color: "bg-violet-400" },
@@ -108,18 +116,14 @@ export default function HomePage() {
       ? new Date(p.first_seen).getTime() >= scanCutoff
       : false;
 
-  // First-match-wins so a project like "solver_infra" lands in Solvers, not in
-  // both Solvers and Platforms. "Projects" bucket (empty match) catches the rest.
+  // First-match-wins so a project doesn't double-count across buckets.
   const assigned = new Set<number>();
   const topByBucket = TOP_BUCKETS.map((bucket) => {
     const inBucket = projects.filter((p) => {
       if (assigned.has(p.id)) return false;
-      const c = (p.category || "").toLowerCase();
-      const matches = bucket.match.length === 0
-        ? true
-        : bucket.match.some((kw) => c.includes(kw));
-      if (matches) assigned.add(p.id);
-      return matches;
+      if (!bucket.match(p)) return false;
+      assigned.add(p.id);
+      return true;
     });
     return {
       label: bucket.label,
@@ -134,13 +138,14 @@ export default function HomePage() {
     (lastScan?.newMentions.length ?? 0) +
     (lastScan?.newFunding.length ?? 0);
 
+  const activeFilter = CATEGORY_FILTERS.find((f) => f.label === categoryFilter) ?? CATEGORY_FILTERS[0];
   const filteredProjects = projects
     .filter(
       (p) =>
         (!search ||
           p.name.toLowerCase().includes(search.toLowerCase()) ||
           (p.description || "").toLowerCase().includes(search.toLowerCase())) &&
-        (categoryFilter === "All" || (p.category || "").toLowerCase() === categoryFilter.toLowerCase())
+        activeFilter.match(p)
     )
     .sort((a, b) => (b.funding_total || 0) - (a.funding_total || 0))
     .slice(0, 6);
@@ -292,15 +297,15 @@ export default function HomePage() {
               <div className="flex flex-wrap gap-2 mb-4">
                 {CATEGORY_FILTERS.map((cat) => (
                   <button
-                    key={cat}
-                    onClick={() => setCategoryFilter(cat)}
+                    key={cat.label}
+                    onClick={() => setCategoryFilter(cat.label)}
                     className={`text-xs px-3 py-1.5 rounded-full transition-colors duration-150 border ${
-                      categoryFilter === cat
+                      categoryFilter === cat.label
                         ? "bg-gray-900 text-white border-gray-900 font-medium"
                         : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
                     }`}
                   >
-                    {cat}
+                    {cat.label}
                   </button>
                 ))}
               </div>
@@ -384,7 +389,7 @@ export default function HomePage() {
                           <span className="text-sm text-gray-400 w-5 tabular-nums">{i + 1}</span>
                           <ProjectLogo name={p.name} size="sm" />
                           <span className="text-sm font-medium text-gray-900 flex-1">{p.name}</span>
-                          <span className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{p.category}</span>
+                          <span className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{displayLabel(p.role, p.intent_type) || p.category}</span>
                           <span className="text-sm font-semibold text-emerald-600 tabular-nums">{((p.relevance_score || 0) * 100).toFixed(0)}%</span>
                         </div>
                       ))}
@@ -432,7 +437,7 @@ export default function HomePage() {
                       rank: i + 1,
                       name: p.name,
                       ticker: p.token_symbol || p.token,
-                      value: p.category || "",
+                      value: displayLabel(p.role, p.intent_type) || p.category || "",
                     }))}
                 />
               </div>
@@ -470,7 +475,7 @@ export default function HomePage() {
                     <ProjectLogo name={p.name} size="sm" />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-gray-900 truncate">{p.name}</div>
-                      <div className="text-xs text-gray-500">{p.category}</div>
+                      <div className="text-xs text-gray-500">{displayLabel(p.role, p.intent_type) || p.category}</div>
                     </div>
                     {(p.token_symbol || p.token) && (
                       <span className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{p.token_symbol || p.token}</span>
