@@ -14,9 +14,25 @@ logger = logging.getLogger(__name__)
 GOOGLE_NEWS_RSS = "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
 
 BASE_QUERIES = [
+    # Intent-DeFi news & research
     "intent based DeFi",
     "DeFi solver network",
     "cross-chain intents",
+    "intent-centric rollup",
+    "order flow auction DeFi",
+    "solver competition DeFi",
+    "chain abstraction intents",
+    # Common intent-DeFi narratives
+    "UniswapX solver",
+    "CoW Protocol settlement",
+    "1inch Fusion",
+    "Across relayer",
+    "Anoma intents",
+    # X/Twitter-indexed content — news articles citing tweets, plus the
+    # occasional tweet that Google News does index. Signal is thin compared
+    # to a live X scraper; useful for catching widely-shared discussions.
+    'site:x.com ("intent" OR "solver") DeFi',
+    'site:twitter.com ("intent-based" OR "order flow") DeFi',
 ]
 
 

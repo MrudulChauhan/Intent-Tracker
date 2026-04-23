@@ -33,9 +33,6 @@ dependencies = [
 
     # LLM (weekly narrative clustering — P1.9)
     "anthropic>=0.40",
-
-    # P1.4 — X/Twitter scanner (unofficial, cookie-based auth)
-    "twikit>=2.0",
 ]
 
 [project.optional-dependencies]
